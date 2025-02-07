@@ -122,7 +122,7 @@ def main():
         sys.exit()
 
     bot = TeleBot(token=TELEGRAM_TOKEN)
-    timestamp = int(time.time())
+    timestamp = 0
 
     while True:
         try:
@@ -140,6 +140,8 @@ def main():
 
         except Exception as error:
             logging.error(f'Ошибка: {error}')
+            if 'Cбой при отправке сообщения в Telegram' in str(error):
+                break
             message = f'Сбой в работе программы: {error}'
             if last_send['error'] != message:
                 send_message(bot, message)
