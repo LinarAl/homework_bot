@@ -122,7 +122,7 @@ def main():
         sys.exit()
 
     bot = TeleBot(token=TELEGRAM_TOKEN)
-    timestamp = 0
+    timestamp = int(time.time())
 
     while True:
         try:
