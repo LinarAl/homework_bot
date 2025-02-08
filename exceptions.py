@@ -17,3 +17,9 @@ class ResponseContextError(Exception):
     """Ответ API не соответствует документации: отсутствует ожидаемый ключ."""
 
     pass
+
+
+class SendMessageError(Exception):
+    """Cбой при отправке сообщения в Telegram."""
+
+    pass

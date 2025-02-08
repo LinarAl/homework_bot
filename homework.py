@@ -9,7 +9,8 @@ from dotenv import load_dotenv
 from telebot import TeleBot
 from telebot.apihelper import ApiException
 
-from exceptions import ResponceStatusError, ResponseContextError, ResponseError
+from exceptions import (ResponceStatusError, ResponseContextError,
+                        ResponseError, SendMessageError)
 
 load_dotenv()
 
@@ -40,11 +41,7 @@ logging.basicConfig(
 
 def check_tokens():
     """Проверка доступности переменных окружения."""
-    list_token = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
-    for token in list_token:
-        if token is None:
-            return False
-    return True
+    return all([PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID])
 
 
 def send_message(bot, message):
@@ -53,20 +50,28 @@ def send_message(bot, message):
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
         logging.debug('Удачная отправка сообщения в Telegram.')
     except ApiException as error:
-        raise Exception(f'Cбой при отправке сообщения в Telegram: {error}')
+        raise SendMessageError(
+            f'Cбой при отправке сообщения в Telegram: {error}')
 
 
 def get_api_answer(timestamp):
     """Запрос к эндпоинту API-сервиса."""
+    requests_parameters = {
+        'url': ENDPOINT,
+        'headers': HEADERS,
+        'params': {'from_date': timestamp}
+    }
     try:
-        response = requests.get(ENDPOINT, headers=HEADERS,
-                                params={'from_date': timestamp})
+        response = requests.get(**requests_parameters)
     except requests.RequestException as error:
         raise ResponseError(f'Ошибка при получении ответа с сервера{error}.')
 
     if response.status_code != HTTPStatus.OK:
         raise ResponceStatusError(
-            f'Ошибка в ответе сервера, статус кода: {response.status_code}.')
+            f'Ошибка в ответе сервера:\n'
+            f'Cтатус кода: {response.status_code}.\n'
+            f'Контент ответа: {response.content.decode("utf-8")}\n'
+            f'Параметры запроса: {requests_parameters}')
     return response.json()
 
 
@@ -128,7 +133,7 @@ def main():
         try:
             response = get_api_answer(timestamp)
             homeworks = check_response(response)
-            if len(homeworks) == 0:
+            if not homeworks:
                 logging.debug('Нет домашних работ.')
                 break
             for homework in homeworks:
@@ -141,7 +146,7 @@ def main():
         except Exception as error:
             logging.error(f'Ошибка: {error}')
             if 'Cбой при отправке сообщения в Telegram' in str(error):
-                break
+                continue
             message = f'Сбой в работе программы: {error}'
             if last_send['error'] != message:
                 send_message(bot, message)
